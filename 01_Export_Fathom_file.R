@@ -1,11 +1,11 @@
 
 ### helper functions to convert BOF Catch/tagging master sheet into Fathom Connect file for batch uploading Animal Data
+### This will ONLY work with the BOF Tagging_Catch_Tissue_MASTERFILE.xlsx file!!!
 
 
 library(readxl)
 library(openxlsx)
 library(tidyverse)
-
 source("Conversion_helper_functions.R")
 
 
@@ -42,12 +42,19 @@ str(CATCH2)
 
 
 
-nwi_fathom <- convert_to_fathom(data = CATCH2, region_filter = "North_West_Island")
+# nwi_fathom <- convert_to_fathom(data = CATCH2, region_filter = "North_West_Island", species_filter = NULL, date_start = "2022-01-01", date_end = "2022-12-31")
+
+nwi_fathom <- convert_to_fathom(data = CATCH2, 
+                                region_filter = "North_West_Island", 
+                                species_filter = NULL, 
+                                date_start = NULL, 
+                                date_end = NULL)
+
 
 glimpse(nwi_fathom)
 
 
 # export as Fathom Connect compatible xlxs
 
-# writexl::write_xlsx(nwi_fathom, path = "NWI_fathom_export.xlsx")
+writexl::write_xlsx(nwi_fathom, path = "NWI_fathom_export.xlsx")
 

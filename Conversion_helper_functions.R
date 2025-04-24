@@ -1,14 +1,43 @@
+#' Convert CATCH Metadata to Fathom Template
+#'
+#' This function transforms tagging metadata from the CATCH dataset (Tagging_Catch_Tissue_MASTERFILE.xlsx file) into the Fathom export template format.
+#' It allows optional filtering by region, species (partial name matching), and date range.
+#'
+#' @param data A data frame containing the CATCH metadata.
+#' @param region_filter Optional. A character string specifying the region to filter by (exact match).
+#' @param species_filter Optional. A character string used for partial matching in both Common Name and Scientific Name (case-insensitive).
+#' @param date_start Optional. Start date for filtering records (format: "YYYY-MM-DD").
+#' @param date_end Optional. End date for filtering records (format: "YYYY-MM-DD").
+#'
+#' @return A tibble formatted according to the Fathom template specifications.
+#' 
+#' @examples
+#' convert_to_fathom(CATCH2)
+#' convert_to_fathom(CATCH2, region_filter = "NWI")
+#' convert_to_fathom(CATCH2, species_filter = "whale")
+#' convert_to_fathom(CATCH2, date_start = "2015-01-01", date_end = "2015-12-31")
+#'
+#' @export
 
 
-
-## helper functions to convert BOF Catch/tagging master sheet into Fathom Connect file for batch uploading Animal Data
-
-convert_to_fathom <- function(data, region_filter = NULL) {
+convert_to_fathom <- function(data, region_filter = NULL, species_filter = NULL, date_start = NULL, date_end = NULL) {
   data |>
-    dplyr::filter(Acoustic_Tag == TRUE) |>
-    # Apply region filter if provided
-    dplyr::filter(if (!is.null(region_filter)) Region == region_filter else TRUE) |>
     
+    # we only need acoustic data
+    dplyr::filter(Acoustic_Tag == TRUE) |>
+    
+    # Optional Region, species, and date range filters:
+    dplyr::filter(
+      (if (!is.null(region_filter)) Region == region_filter else TRUE) &
+        (if (!is.null(species_filter)) (
+          stringr::str_detect(Common_Name, regex(species_filter, ignore_case = TRUE)) |
+            stringr::str_detect(Scientific_Name, regex(species_filter, ignore_case = TRUE))
+        ) else TRUE) &
+        (if (!is.null(date_start)) Date >= lubridate::ymd(date_start) else TRUE) &
+        (if (!is.null(date_end)) Date <= lubridate::ymd(date_end) else TRUE)
+    ) |> 
+    
+    # some mutations to make things work 
     dplyr::mutate(
       capture_time_calc = lubridate::with_tz(
         lubridate::ymd_hm(
@@ -53,6 +82,7 @@ convert_to_fathom <- function(data, region_filter = NULL) {
       })
     ) |>
     
+    ## Conversion to Fathom Connect compatible columns 
     dplyr::transmute(
       Name = NA,                      
       `Species Common Name` = Common_Name,     
