@@ -1,0 +1,4 @@
+To Do:
+
+- add conversion function to export receiver deployment metadata using fahtom excel template 
+- think aboiut making this a pckage with functions that will automatically tranform into required file structure no matter the inout file structure 
