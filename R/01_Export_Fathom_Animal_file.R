@@ -6,7 +6,8 @@
 library(readxl)
 library(openxlsx)
 library(tidyverse)
-source("R/Conversion_helper_functions.R")
+source("R/fathom_animals.R")
+source("R/fathom_transmitter_deployments.R")
 
 
 
@@ -17,47 +18,26 @@ str(CATCH)
 head(CATCH)
 
 
-# Fix date and time
-CATCH2 <- CATCH |> 
-  dplyr::mutate(
-    Date = as.Date(as.numeric(Date), origin = "1899-12-30"),  # Excel numeric to Date
-    Catch_Time = case_when(
-      !is.na(Catch_Time) & grepl("^[0-9.]+$", Catch_Time) ~
-        format(as.POSIXct(as.numeric(Catch_Time) * 86400, origin = "1970-01-01", tz = "UTC"), "%H:%M"),
-      TRUE ~ Catch_Time),
-    Release_Time = case_when(
-        !is.na(Release_Time) & grepl("^[0-9.]+$", Release_Time) ~
-          format(as.POSIXct(as.numeric(Release_Time) * 86400, origin = "1970-01-01", tz = "UTC"), "%H:%M"),
-        TRUE ~ Release_Time
-    )
-  )
-
-str(CATCH2)
-
-
-
 
 
 # extract metadata from Study ---------------------------------------------
 
 
 
-# nwi_fathom <- convert_to_fathom(data = CATCH2, region_filter = "North_West_Island", species_filter = NULL, date_start = "2022-01-01", date_end = "2022-12-31")
+nwi_fathom <- fathom_animals(data = CATCH, 
+                             region_filter = "North_West_Island", 
+                             project_filter = NULL,
+                             species_filter = NULL, 
+                             date_start = NULL, 
+                             date_end = NULL,
+                             out_path       = "test/export",
+                             out_file       = "Fathom_Animals.xlsx",
+                             export_transmitter = TRUE)
 
-nwi_fathom <- convert_to_fathom(data = CATCH2, 
-                                region_filter = "North_West_Island", 
-                                species_filter = NULL, 
-                                date_start = NULL, 
-                                date_end = NULL)
+
 
 
 glimpse(nwi_fathom)
-
-
-# export as Fathom Connect compatible xlxs
-
-writexl::write_xlsx(nwi_fathom, path = "NWI_fathom_export.xlsx")
-
 
 
 
@@ -65,37 +45,21 @@ writexl::write_xlsx(nwi_fathom, path = "NWI_fathom_export.xlsx")
 # GMY seagrass project ----------------------------------------------------
 
 
-gmy_fathom <- convert_to_fathom(data = CATCH2, 
+gmy_fathom <- fathom_animals(data = CATCH, 
                                 region_filter = NULL, 
                                 project_filter = "GMY_Cairns",
                                 species_filter = NULL, 
                                 date_start = NULL, 
-                                date_end = NULL)
+                                date_end = NULL,
+                             out_path       = "test/export",
+                             out_file       = "Fathom_Animals.xlsx",
+                             export_transmitter = TRUE)
 
 
 head(gmy_fathom)
 
-writexl::write_xlsx(gmy_fathom, path = "data/export/GMY_fathom_export.xlsx")
-
-
-## cereate Transmitter deployment File 
-
-glimpse(gmy_fathom)
-
-
-gmy_transmitters <- gmy_fathom |>
-  dplyr::mutate(
-    Station = NA_character_,
-    `Deployment Start` = `Tagging Time`,
-    `Deployment End` = NA_character_,
-    Latitude = `Tagging Latitude`,
-    Longitude = `Tagging Longitude`,
-    Device = `Tag ID`,
-    `Device Depth` = NA_character_) |> 
-dplyr::select(Station, `Deployment Start`, `Deployment End`, Latitude, Longitude, Device, `Device Depth`)
-
-head(gmy_transmitters)
 
 
 
-writexl::write_xlsx(gmy_transmitters, path = "data/export/GMY_fathom_export_transmitters.xlsx")
+
+
