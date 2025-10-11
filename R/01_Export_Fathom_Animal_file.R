@@ -6,7 +6,7 @@
 library(readxl)
 library(openxlsx)
 library(tidyverse)
-source("Conversion_helper_functions.R")
+source("R/Conversion_helper_functions.R")
 
 
 
@@ -58,3 +58,44 @@ glimpse(nwi_fathom)
 
 writexl::write_xlsx(nwi_fathom, path = "NWI_fathom_export.xlsx")
 
+
+
+
+
+# GMY seagrass project ----------------------------------------------------
+
+
+gmy_fathom <- convert_to_fathom(data = CATCH2, 
+                                region_filter = NULL, 
+                                project_filter = "GMY_Cairns",
+                                species_filter = NULL, 
+                                date_start = NULL, 
+                                date_end = NULL)
+
+
+head(gmy_fathom)
+
+writexl::write_xlsx(gmy_fathom, path = "data/export/GMY_fathom_export.xlsx")
+
+
+## cereate Transmitter deployment File 
+
+glimpse(gmy_fathom)
+
+
+gmy_transmitters <- gmy_fathom |>
+  dplyr::mutate(
+    Station = NA_character_,
+    `Deployment Start` = `Tagging Time`,
+    `Deployment End` = NA_character_,
+    Latitude = `Tagging Latitude`,
+    Longitude = `Tagging Longitude`,
+    Device = `Tag ID`,
+    `Device Depth` = NA_character_) |> 
+dplyr::select(Station, `Deployment Start`, `Deployment End`, Latitude, Longitude, Device, `Device Depth`)
+
+head(gmy_transmitters)
+
+
+
+writexl::write_xlsx(gmy_transmitters, path = "data/export/GMY_fathom_export_transmitters.xlsx")
