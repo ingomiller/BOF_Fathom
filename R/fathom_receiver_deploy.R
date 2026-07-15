@@ -48,7 +48,7 @@
 #'
 #' @examples
 #' \dontrun{
-#' fathom <- fathom_receiver_deployments(
+#' fathom <- fathom_receiver_deploy(
 #'   data = deploy,
 #'   code = NULL,
 #'   installation = "GMY seagrass",
@@ -66,6 +66,8 @@ fathom_receiver_deploy <- function(
     code = NULL,
     region = NULL,
     installation = NULL,
+    responsible_org = NULL,   # partial, case-insensitive
+    recovered_only = FALSE,   # keep only recovered deployments when TRUE
     utc_zone = 10,
     default_hour_local = 10,
     excel_origin = NULL,
@@ -73,11 +75,30 @@ fathom_receiver_deploy <- function(
     out_file = "Fathom_Receiver_Deployments.xlsx",
     save_as = "fathom_recr_dep"
 ) {
+  # 0) Always drop "To be deployed"
+  data <- data |>
+    dplyr::filter(is.na(Recovered) | Recovered != "To be deployed")
+  
+  # If only completed (recovered) deployments are desired
+  if (isTRUE(recovered_only)) {
+    if (!"Recovered" %in% names(data)) {
+      base::warning("`recovered_only = TRUE` but column `Recovered` not found; no extra filtering applied.")
+    } else {
+      data <- data |>
+        dplyr::mutate(.recovered_flag = stringr::str_to_lower(as.character(Recovered))) |>
+        # keep only clearly recovered, explicitly drop active
+        dplyr::filter(.recovered_flag %in% c("true", "recovered", "yes", "1")) |>
+        dplyr::filter(.recovered_flag != "active") |>
+        dplyr::select(-.recovered_flag)
+    }
+  }
+  
   # 1) Basic filters (partial, case-insensitive)
   df <- data |>
     dplyr::filter(
       (if (!is.null(code))   stringr::str_detect(Code,   stringr::regex(code,   ignore_case = TRUE)) else TRUE) &
-        (if (!is.null(region)) stringr::str_detect(Region, stringr::regex(region, ignore_case = TRUE)) else TRUE)
+        (if (!is.null(region)) stringr::str_detect(Region, stringr::regex(region, ignore_case = TRUE)) else TRUE) &
+        (if (!is.null(responsible_org)) stringr::str_detect(Responsible_Org_Unit, stringr::regex(responsible_org, ignore_case = TRUE)) else TRUE)
     )
   
   # Installation filter across plausible column names
@@ -116,17 +137,17 @@ fathom_receiver_deploy <- function(
       time_num  = suppressWarnings(base::as.numeric(Time)),
       time_frac = dplyr::case_when(
         base::is.na(time_num) ~ NA_real_,
-        time_num > 1 ~ time_num / 24,  # treat "14" as 14 hours
+        time_num > 1 ~ time_num / 24,  # "14" = 14 hours
         TRUE ~ time_num
       ),
       time_sec = dplyr::coalesce(time_frac * 86400, default_hour_local * 3600),
       
-      # Construct UTC directly using fixed offset: UTC = local - offset
+      # UTC = local - offset
       dep_utc_base = lubridate::as_datetime(base::as.Date(`Date deployed`), tz = "UTC") -
         lubridate::hours(utc_zone),
       `Deployment Start` = dep_utc_base + lubridate::seconds(base::round(time_sec)),
       
-      # --- Recovery time (from Excel serials) ---
+      # --- Recovery ---
       rec_date_num = suppressWarnings(base::as.numeric(`Rec.Date`)),
       rec_date     = base::as.Date(rec_date_num, origin = chosen_origin),
       
@@ -150,14 +171,11 @@ fathom_receiver_deploy <- function(
     ) |>
     dplyr::select(Station, `Deployment Start`, `Deployment End`, Latitude, Longitude, Device, `Device Depth`)
   
-  # 4) Write Excel and expose object
+  # 4) Write Excel + assign + return
   if (!base::dir.exists(out_path)) base::dir.create(out_path, recursive = TRUE)
-  out_fp <- base::file.path(out_path, out_file)
-  writexl::write_xlsx(res, out_fp)
+  writexl::write_xlsx(res, base::file.path(out_path, out_file))
   
-  # CRAN policy note: assigning into .GlobalEnv is generally discouraged in packages.
-  # Kept here to match requested behavior.
   base::assign(save_as, res, envir = .GlobalEnv)
-  
   res
 }
+
